@@ -89,18 +89,17 @@
   </div>
 
   <div class="data-box">
-    <h3>DATA TRACKING</h3>
-    <p><strong>Waktu:</strong> <span id="time">-</span></p>
-    <p><strong>Latitude:</strong> <span id="lat">-</span></p>
-    <p><strong>Longitude:</strong> <span id="lng">-</span></p>
-    <p><strong></strong> <span id="alt"></span></p>
-    <p><strong>Suhu:</strong> <span id="suhu">-</span> °C</p>
-    <p><strong>Kelembaban:</strong> <span id="lembab">-</span> %</p>
-    <p><strong></strong> <span id="kecepatan"></span></p>
-    <p><strong>Gyro X:</strong> <span id="gx">-</span></p>
-    <p><strong>Gyro Y:</strong> <span id="gy">-</span></p>
-    <p><strong>Gyro Z:</strong> <span id="gz">-</span></p>
-  </div>
+  <h3>DATA TRACKING</h3>
+  <p><strong>Waktu:</strong> <span id="time">-</span></p>
+  <p><strong>Latitude:</strong> <span id="lat">-</span></p>
+  <p><strong>Longitude:</strong> <span id="lng">-</span></p>
+  <p><strong>Suhu:</strong> <span id="suhu">-</span> °C</p>
+  <p><strong>Kelembaban:</strong> <span id="lembab">-</span> %</p>
+  <p><strong>Gyro X:</strong> <span id="gx">-</span></p>
+  <p><strong>Gyro Y:</strong> <span id="gy">-</span></p>
+  <p><strong>Gyro Z:</strong> <span id="gz">-</span></p>
+</div>
+
 
   <!-- Firebase + Leaflet JS -->
   <script type="module">
@@ -261,18 +260,17 @@ const latestNodeQuery = query(trackingRef, orderByKey(), limitToLast(1));
         markerPoints.push(circle);
 
         trackingData.push({
-          time: waktu,
-          lat: lat,
-          lng: lng,
-          alt: altitude,
-          suhu: suhu,
-          lembab: kelembaban,
-          kecepatan: kecepatan,
-          gx: gx,
-          gy: gy,
-          gz: gz,
-          arah: arah
-        });
+  time: waktu,
+  lat: lat,
+  lng: lng,
+  suhu: suhu,
+  lembab: kelembaban,
+  gx: gx,
+  gy: gy,
+  gz: gz,
+  arah: arah
+});
+
       }
     }
   }, { onlyOnce: true });
