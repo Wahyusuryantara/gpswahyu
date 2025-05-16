@@ -1,32 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <!-- Metadata dasar -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GPS TRACKER WS</title>
-
-  <!-- Font dan CSS eksternal -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-
-  <!-- CSS internal untuk tampilan -->
   <style>
     body {
-      font-family: 'Montserrat', sans-serif;
+      font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #f0f4f8;
-      color: #2c3e50;
-    }
-
-    h2 {
-      background-color: #1f3a93;
-      color: #fff;
-      padding: 15px;
-      margin: 0;
-      text-align: center;
     }
 
     #map {
@@ -36,16 +21,9 @@
 
     .data-box {
       padding: 15px;
-      background: #ffffff;
+      background: #f4f4f4;
       margin: 10px;
       box-sizing: border-box;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .data-box h3 {
-      margin-top: 0;
-      color: #1f3a93;
     }
 
     .data-box p {
@@ -65,24 +43,15 @@
       margin: 5px;
       cursor: pointer;
       width: 45%;
-      background: linear-gradient(135deg, #1abc9c, #16a085);
-      border: none;
-      border-radius: 6px;
-      color: #fff;
-      transition: background 0.3s;
-    }
-
-    .buttons button:hover {
-      background: linear-gradient(135deg, #16a085, #1abc9c);
     }
 
     @media (max-width: 600px) {
       #map {
-        height: 300px;
+        height: 300px; /* Sesuaikan tinggi peta di perangkat kecil */
       }
 
       .buttons button {
-        width: 100%;
+        width: 100%; /* Tombol menjadi lebar penuh di layar kecil */
         margin: 5px 0;
       }
 
@@ -92,7 +61,7 @@
     }
 
     footer {
-      background-color: #1f3a93;
+      background-color: #333;
       color: white;
       text-align: center;
       padding: 10px 0;
@@ -108,43 +77,243 @@
   </style>
 </head>
 <body>
-  <h2>GPS TRACKER WS</h2>
+  <h2 style="padding:15px;">GPS TRACKER WS</h2>
 
-  <!-- Elemen untuk peta -->
   <div id="map"></div>
 
-  <!-- Tombol kontrol -->
   <div class="buttons">
-    <button id="startBtn">Start Tracking</button>
-    <button id="endBtn">End Tracking</button>
+    <button id="startBtn">Mulai Tracking</button>
+    <button id="endBtn">Akhiri Tracking</button>
     <button id="resetBtn">Reset Tracking</button>
     <button id="saveBtn">Save Tracking</button>
   </div>
 
-  <!-- Kotak data tracking -->
   <div class="data-box">
     <h3>DATA TRACKING</h3>
     <p><strong>Waktu:</strong> <span id="time">-</span></p>
     <p><strong>Latitude:</strong> <span id="lat">-</span></p>
     <p><strong>Longitude:</strong> <span id="lng">-</span></p>
-    <p><strong>Altitude:</strong> <span id="alt">-</span> mdpl</p>
+    <p><strong></strong> <span id="alt"></span></p>
     <p><strong>Suhu:</strong> <span id="suhu">-</span> °C</p>
     <p><strong>Kelembaban:</strong> <span id="lembab">-</span> %</p>
-    <p><strong>Kecepatan:</strong> <span id="kecepatan">-</span> km/h</p>
+    <p><strong></strong> <span id="kecepatan"></span></p>
     <p><strong>Gyro X:</strong> <span id="gx">-</span></p>
     <p><strong>Gyro Y:</strong> <span id="gy">-</span></p>
     <p><strong>Gyro Z:</strong> <span id="gz">-</span></p>
   </div>
 
-  <!-- Firebase + Leaflet + logic tracking -->
-  <!-- (Tidak ada perubahan logika JS karena hanya diminta ubah tampilan) -->
+  <!-- Firebase + Leaflet JS -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, query, orderByKey, limitToLast, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-  <!-- Spacer agar footer tidak menutupi elemen -->
-  <div style="height: 40px;"></div>
 
-  <!-- Footer -->
+    const firebaseConfig = {
+      apiKey: "AIzaSyC94W2vwyoKSC17npeK1xPLvn5iMJXpeRk",
+  authDomain: "gpswahyu.firebaseapp.com",
+  databaseURL: "https://gpswahyu-default-rtdb.firebaseio.com",
+  projectId: "gpswahyu",
+  storageBucket: "gpswahyu.firebasestorage.app",
+  messagingSenderId: "836075488533",
+  appId: "1:836075488533:web:5ae56216e310250007151c",
+  measurementId: "G-TK36K8P94Q"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const map = L.map('map').setView([-8.558, 115.153], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker = L.marker([-8.558, 115.153]).addTo(map);
+    let polyline = L.polyline([], { color: 'blue' }).addTo(map);
+    let path = [];
+    let markerPoints = [];
+    let trackingData = [];
+    let isTracking = false;
+
+    let startMarker = null;
+    let endMarker = null;
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      isTracking = true;
+      path = [];
+      trackingData = [];
+      markerPoints.forEach(m => map.removeLayer(m));
+      markerPoints = [];
+      polyline.setLatLngs([]);
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      alert("Tracking dimulai");
+    });
+
+    document.getElementById("endBtn").addEventListener("click", () => {
+      isTracking = false;
+      if (path.length > 0) {
+        const lastPoint = path[path.length - 1];
+        endMarker = L.marker(lastPoint).addTo(map).bindPopup("End of journey").openPopup();
+      }
+      alert("Tracking dihentikan");
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      isTracking = false;
+      path = [];
+      trackingData = [];
+      polyline.setLatLngs([]);
+      markerPoints.forEach(m => map.removeLayer(m));
+      markerPoints = [];
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      alert("Tracking telah direset");
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", () => {
+      if (trackingData.length === 0) {
+        alert("Belum ada data tracking untuk disimpan");
+        return;
+      }
+
+      let content = "Waktu,Latitude,Longitude,Altitude,Suhu,Kelembaban,GyroX,GyroY,GyroZ\n";
+      trackingData.forEach(entry => {
+        content += `${entry.time},${entry.lat},${entry.lng},${entry.alt},${entry.suhu},${entry.lembab},${entry.gx},${entry.gy},${entry.gz}\n`;
+      });
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tracking_data.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    const trackingRef = ref(db, 'tracking');
+const latestNodeQuery = query(trackingRef, orderByKey(), limitToLast(1));
+
+
+
+    let lastLat = null;
+    let lastLng = null;
+
+    setInterval(() => {
+  onValue(latestNodeQuery, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  const keys = Object.keys(data);
+  const latestKey = keys[0];
+  const latestData = data[latestKey];
+  if (!latestData) return;
+
+  console.log("Data terbaru:", latestData);
+
+  const lat = parseFloat(latestData.lat);
+  const lng = parseFloat(latestData.lng);
+  const waktu = latestData.timestamp;
+  const altitude = 0;
+  const suhu = latestData.temperature ?? "-";
+  const kelembaban = latestData.humidity ?? "-";
+  const gx = latestData.gyro_x ?? "-";
+  const gy = latestData.gyro_y ?? "-";
+  const gz = latestData.gyro_z ?? "-";
+  const arah = latestData.arah ?? "-";
+
+  // Update UI
+  document.getElementById('time').innerText = waktu;
+  document.getElementById('lat').innerText = lat;
+  document.getElementById('lng').innerText = lng;
+  document.getElementById('suhu').innerText = suhu;
+  document.getElementById('lembab').innerText = kelembaban;
+  document.getElementById('gx').innerText = gx;
+  document.getElementById('gy').innerText = gy;
+  document.getElementById('gz').innerText = gz;
+
+    // Update peta
+    if (!isNaN(lat) && !isNaN(lng)) {
+      marker.setLatLng([lat, lng]);
+      map.setView([lat, lng]);
+
+      if (isTracking) {
+        if (path.length === 0) {
+          startMarker = L.marker([lat, lng]).addTo(map).bindPopup("Start of journey").openPopup();
+        }
+        path.push([lat, lng]);
+        polyline.setLatLngs(path);
+
+        const circle = L.circleMarker([lat, lng], {
+          radius: 4,
+          color: 'red',
+          fillColor: '#f03',
+          fillOpacity: 0.8
+        }).addTo(map).bindPopup(`
+          <strong>Waktu:</strong> ${waktu}<br>
+          <strong>Suhu:</strong> ${suhu} °C<br>
+          <strong>Kelembaban:</strong> ${kelembaban} %<br>
+          <strong>Gyro X:</strong> ${gx}<br>
+          <strong>Gyro Y:</strong> ${gy}<br>
+          <strong>Gyro Z:</strong> ${gz}<br>
+          <strong>Arah:</strong> ${arah}
+        `);
+
+        markerPoints.push(circle);
+
+        trackingData.push({
+          time: waktu,
+          lat: lat,
+          lng: lng,
+          alt: altitude,
+          suhu: suhu,
+          lembab: kelembaban,
+          kecepatan: kecepatan,
+          gx: gx,
+          gy: gy,
+          gz: gz,
+          arah: arah
+        });
+      }
+    }
+  }, { onlyOnce: true });
+}, 1000);
+
+
+  </script>
+
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script>
+    let wakeLock = null;
+  
+    async function requestWakeLock() {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        console.log('Wake Lock aktif');
+        wakeLock.addEventListener('release', () => {
+          console.log('Wake Lock dilepas');
+        });
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    }
+  
+    document.addEventListener('visibilitychange', () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    });
+  
+    // Aktifkan wake lock saat user klik "Mulai Tracking"
+    document.getElementById("startBtn").addEventListener("click", () => {
+      requestWakeLock();
+    });
+  </script>  
+
+  <!-- Copyright Footer -->
+  <div style="height: 40px;"></div> <!-- Spacer agar footer tidak menghalangi -->
+
   <footer>
-    <p>&copy; 2025 Ws. All rights reserved.</p>
+    <p>&copy; 2025 WS. All rights reserved.</p>
   </footer>
 </body>
 </html>
